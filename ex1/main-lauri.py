@@ -8,14 +8,10 @@ TARGET_MOVIE = 2
 # Check the working directory
 print('Current working directory: ', os.getcwd())
 
-# Import ratings data.
+# Import ratings data and print first 5 elements of it
 ratings = pd.read_csv("./dataset/ml-latest-small/ratings.csv")
-
-# Print that data as psql table
 print('First five elements of this dataset:')
-# print(tabulate(df, headers = 'keys', tablefmt = 'psql'))
 print(ratings.head(5))
-
 
 print('Number of elements in dataset: ', len(ratings.index), "\n")
 
@@ -115,7 +111,7 @@ def findMostSimilarUsers(ratings, targetUser, numberOfUsers, targetMovie, minCom
             if (anotherUser != targetUser) & (getUsersRatingForMovie(ratings, anotherUser, targetMovie) >= 0)]
     
     # Sort results and return first n number of users
-    similarityScores.sort(reverse=True)
+    similarityScores.sort(reverse=True) # ### ## # ## 
     return similarityScores[:numberOfUsers]
 
 
