@@ -102,15 +102,9 @@ def calculatePearsonsCorrelationBetweenUsers(ratings, user_a_id, user_b_id):
     a_ratings = ratings.loc[ratings.userId == user_a_id]
     b_ratings = ratings.loc[ratings.userId == user_b_id]
 
-    a_rating_movies_list = a_ratings.movieId.values.tolist()
-    b_rating_movies_list = b_ratings.movieId.values.tolist()
-
     # Create two dataframes, which both contain only movies that both users have rarated
-    a_union_b_boolean_series = a_ratings.movieId.isin(b_rating_movies_list)
-    b_union_a_boolean_series = b_ratings.movieId.isin(a_rating_movies_list)
-
-    setA = a_ratings[a_union_b_boolean_series].sort_values(by=['movieId'])
-    setB = b_ratings[b_union_a_boolean_series].sort_values(by=['movieId'])
+    setA = a_ratings[a_ratings.movieId.isin(b_ratings.movieId.values.tolist())].sort_values(by=['movieId'])
+    setB = b_ratings[b_ratings.movieId.isin(a_ratings.movieId.values.tolist())].sort_values(by=['movieId'])
 
     # If users have no common movies or if count of common ratings is less than threshold, return -1
     if (len(setA.index) == 0 | len(setA.index) < MIN_COMMON_RATINGS_BETWEEN_USERS):
