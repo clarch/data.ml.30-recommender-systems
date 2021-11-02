@@ -27,6 +27,8 @@ def user_based(user_id, r_matrix, movieName, n=5):
 
 		# create a list with all the users and their ratings for movies
 		user_ratings = r_matrix.pivot_table(index='userId', columns='title', values='rating')
+		
+		# Replace all na fields with 0
 		user_ratings = user_ratings.fillna(0)
 		
 		# Get similar users
