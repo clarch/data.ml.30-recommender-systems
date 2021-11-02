@@ -3,23 +3,23 @@ from math import sqrt
 
 
 ### For performance and accuracy reasons following tresholds can be used:
-NUMBER_OF_SIMILAR_USERS_TO_USE = 10     # Number of most similar users to use in the esimation
-MIN_COMMON_RATINGS_BETWEEN_USERS = 0    # (FOR ACCURACITY) to only take into account other users, that have at least this much common ratings with target user
-MAX_COUNT_OF_USERS_TO_CHECK = 0         # (FOR TESTING PERFORMANCE) to only go through first n amount of users in the dataset
+NUMBER_OF_SIMILAR_USERS_TO_USE = 10         # Number of most similar users to use in the esimation
+MIN_COMMON_RATINGS_BETWEEN_USERS = 0        # (FOR ACCURACITY) to only take into account other users, that have at least this much common ratings with target user
+MAX_COUNT_OF_USERS_TO_CHECK = 0             # (FOR TESTING PERFORMANCE) to only go through first n amount of users in the dataset
+MAX_COUNT_OF_MOVIES_TO_CHECK = 100          # (FOR TESTING PERFORMANCE) to only go through first n amount of movies in the dataset
 
 
 
 # In this program a dataset of movie reviews is read from .cvs file and then 
 # user-based collaborative filtering is done to predict users rating for a movie
 def main():
-
-
     TARGET_USER = 1     # User to which we find rating prediction
-    TARGET_MOVIE = 2    # Movie that we want to predict a rating
+    TARGET_MOVIE = 5    # Movie that we want to predict a rating
     PEARSONS_CORRELATION_OTHER_USER = 3 # Other user to which pearsons correlation is calculated below
 
     # First import the dataset. It contains 4 columns: userId, movieId, rating, and timestamp
     ratings = pd.read_csv('./dataset/ml-latest-small/ratings.csv')
+    movies = pd.read_csv('./dataset/ml-latest-small/movies.csv')
 
     # Print five first lines of this set to check that we have right dataset and then count of rows it contains
     print('First five rows of this dataset:')
@@ -28,12 +28,17 @@ def main():
 
     # For testing: We can check pearsons correlation for pair of users. NOTE: MIN_COMMON_RATINGS_BETWEEN_USERS affects this
     correlation = calculatePearsonsCorrelationBetweenUsers(ratings, TARGET_USER, PEARSONS_CORRELATION_OTHER_USER)
-    print(f'For testing: Pearson\'s correlation between user 1 nd 2: {correlation}\n')
+    print(f'For testing: Pearson\'s correlation between user {TARGET_USER} and {PEARSONS_CORRELATION_OTHER_USER}: {correlation}\n')
+
+    print(f'Find target users {TARGET_USER} most similar users for movie {TARGET_MOVIE}')
+    printSimilarUsersAsList(findMostSimilarUsers(ratings, TARGET_USER, TARGET_MOVIE))
 
     # This function call starts this process of finding users rating prediction for a film
-    print(f'Predict users {TARGET_USER} rating for a movie {TARGET_MOVIE} they have not rated.')
     predictedRating = predictUsersRating(ratings, TARGET_USER, TARGET_MOVIE)
-    print(f'\nTarget user: {TARGET_USER}\nTarget movie: {TARGET_MOVIE}\nPredicted rating: {predictedRating}')
+    print(f'\nUsers {TARGET_USER} predicted rating for movie {TARGET_MOVIE}: {predictedRating}\n')
+
+    # Get users recommendation for all unrated films (limited by MAX_COUNT_OF_MOVIES_TO_CHECK)
+    getUsersMovieRecommendations(movies, ratings, TARGET_USER)
 
 
 
@@ -50,20 +55,20 @@ def predictUsersRating(ratings, targetUser, targetMovie):
     # First for each other user, that have rated the target movie, a similarity score is calculated
     similarUsers = findMostSimilarUsers(ratings, targetUser, targetMovie)
 
-    printSimilarUsersAsList(similarUsers)
-
     # Get target users mean rating score
     targetUsersRatingMean = getUsersRatingMean(ratings, targetUser)
 
     # Calculate sum of similar users weighted and normilized ratings. Similarity score is used as weight.
     # similarUsers: [(similarityScore, userId)]
     sumOfSimilarUsersWeightedNormilizedRatings = 0
+    sumOfSimilarityScores = 0
     for similarUser in similarUsers:
         usersNormalizedRating = getUsersRatingForMovie(ratings, similarUser[1], targetMovie) - getUsersRatingMean(ratings, similarUser[1])
         sumOfSimilarUsersWeightedNormilizedRatings += similarUser[0] * usersNormalizedRating
+        sumOfSimilarityScores += similarUser[0]
 
-    # Calculate sum of all similarityscores of similar users
-    sumOfSimilarityScores = sum([user[0] for user in similarUsers])
+    if sumOfSimilarityScores == 0:
+        return -1
     
     # Calculate similarity rating. This formula is taken from courses second lecture slides
     return targetUsersRatingMean + (sumOfSimilarUsersWeightedNormilizedRatings / sumOfSimilarityScores)
@@ -76,12 +81,10 @@ def findMostSimilarUsers(ratings, targetUser, targetMovie):
 
     # First lets get all users id's to a simple list of users that have ranked target movie
     otherUsersThatHaveRatedTargetMovie = ratings.loc[ratings.movieId == targetMovie].userId.unique().tolist()
-    print('Number of other users that have review the target film: ', len(otherUsersThatHaveRatedTargetMovie))
+    # print('Number of other users that have review the target film: ', len(otherUsersThatHaveRatedTargetMovie))
 
     # If user limit is defined to be over 0, use that. Otherwise this will go through all other users
     usersLimit = MAX_COUNT_OF_USERS_TO_CHECK if MAX_COUNT_OF_USERS_TO_CHECK > 0 else len(otherUsersThatHaveRatedTargetMovie)
-    
-    print('\nCalculating similarity scores to other users. This might take a while depending on the hardware...')
 
     # Getting similarity score between targeted and every other user. Tupple of (similarityScore, userId) is returned
     # Is only done for users, that have rated the target movie (and are not the target user)
@@ -116,22 +119,48 @@ def calculatePearsonsCorrelationBetweenUsers(ratings, user_a_id, user_b_id):
         setB.rename(columns={'rating': 'rating_b'})[['movieId', 'rating_b']],
         on = 'movieId')[['rating_a', 'rating_b']]
 
+    user_a_mean_rating = getUsersRatingMean(ratings, user_a_id)
+    user_b_mean_rating = getUsersRatingMean(ratings, user_b_id)
+
     # Calculate sum of products of normilized ratings
     sumOfNormilizedRatingsProducts = 0
     for i, row in combinedSet.iterrows():
-        a_norm = row.rating_a - getUsersRatingMean(ratings, user_a_id)
-        b_norm = row.rating_b - getUsersRatingMean(ratings, user_b_id)
+        a_norm = row.rating_a - user_a_mean_rating
+        b_norm = row.rating_b - user_b_mean_rating
         sumOfNormilizedRatingsProducts += (a_norm * b_norm)
 
     # Divider is product of each users calculated sum of normalized ratings from the set of common ratings
-    divider = calculateSumOfNormalizedRatingsFromFilteredSet(ratings, setA, user_a_id) * \
-        calculateSumOfNormalizedRatingsFromFilteredSet(ratings, setB, user_b_id)
+    divider = calculateSumOfNormalizedRatingsFromFilteredSet(setA, user_a_mean_rating) * \
+        calculateSumOfNormalizedRatingsFromFilteredSet(setB, user_b_mean_rating)
     
     if divider == 0:
         return 0
     
     return sumOfNormilizedRatingsProducts / divider
 
+
+# Gets users movie recommendations for films that user has not yet ranked
+def getUsersMovieRecommendations(movies, ratings, targetUser):
+    # Get all users rating and after that all movies that user has not yet rated
+    usersRatings = ratings.loc[ratings.userId == targetUser].movieId.values.tolist()
+    unratedMovies = movies[~movies.movieId.isin(usersRatings)]
+
+    print(f'Count of all movies: {len(movies.index)}')
+    print(f'Count of movies user {targetUser} has not rated yet: ', len(unratedMovies))
+    print('Calculating recommendations for movies. This might take a while depending on the hardware...')
+
+    # If user limit is defined to be over 0, use that. Otherwise this will go through all movies
+    movieLimit = MAX_COUNT_OF_MOVIES_TO_CHECK if MAX_COUNT_OF_MOVIES_TO_CHECK > 0 else len(unratedMovies)
+
+    # Counts ratings for all movies.
+    # Return tuple (predictedRating, movieId, movieTitle)
+    movieRecommendations = [(predictUsersRating(ratings, targetUser, movie.movieId), movie.movieId, movie.title) \
+        for i, movie in unratedMovies.head(movieLimit).iterrows()]
+    
+    # Sort returned recommendations and return first 
+    movieRecommendations.sort(reverse=True)
+    printMovieRecommendations(movieRecommendations[:10])
+    
 
 
 # Returns rating given by userId to movie movieId.
@@ -152,8 +181,7 @@ def getUsersRatingMean(all_ratings, userId):
 
 
 # Calculates sum of users nomalized ratings in a dataset
-def calculateSumOfNormalizedRatingsFromFilteredSet(allRatings, usersRatings, userId):
-    usersMeanRating = getUsersRatingMean(allRatings, userId)
+def calculateSumOfNormalizedRatingsFromFilteredSet(usersRatings, usersMeanRating):
     sumOfNormalizedRatings = 0
     for i, row in usersRatings.iterrows():
         sumOfNormalizedRatings += ((row.rating - usersMeanRating) ** 2) 
@@ -166,6 +194,12 @@ def printSimilarUsersAsList(similarUsers):
     print('Most similar users that have rated target film:')
     for similarUser in similarUsers:
         print(f'UserId: {similarUser[1]},\t similarity score: {similarUser[0]}')
+
+# Prints movieRecommendations as a list
+def printMovieRecommendations(movieRecommendations):
+    print('\nRecommended movies:\n id, predicted rating, title')
+    for movie in movieRecommendations:
+        print(f'MovieId: {movie[1]}\tpredicted rating: {movie[0]}\ttitle: {movie[2]}')
 
 
 main()
