@@ -29,9 +29,8 @@ def user_based(user_id, r_matrix, movieName, n=5):
 		user_ratings = r_matrix.pivot_table(index='userId', columns='title', values='rating')
 		user_ratings = user_ratings.fillna(0)
 
-		# Get movies rated by  
-		
-		# Recommend with pearsons correlation
+				
+		# Similar movies to movieName, recommend with pearsons correlation
 		correlation = user_ratings.corrwith(user_ratings[movieName]).sort_values(ascending=False)
 		correlation = correlation.head(20)
 		print(correlation)
