@@ -1,66 +1,63 @@
-from sklearn.neighbors import NearestNeighbours
-import panda as pd
+#from sklearn.neighbors import NearestNeighbours
+import pandas as pd
 import numpy as np
 
 
 #import the movies file and ratings data
-movie_= pd.read_csv('movies.csv')
-ratings_= pd.read_csv('ratings.csv')
+movies_list = pd.read_csv('../excel/ml-latest-small/movies.csv')
+ratings_list = pd.read_csv('../excel/ml-latest-small/ratings.csv')
 
 #display top 10 rows
-list_= movie_.head(10)
-print("The list has rows", len(list_), "rows")
+mov_list = movies_list.head(10)
+print(mov_list)
+print("Number of elements in the dataset:", len(ratings_list))
 
-# similarities
-ratings_ = ratings_.merge(movie_, on='movieId', how='left')
-r_ = pd.DataFrame(ratings_.groupby('title')['rating'].mean())
+# merge ratings list with movie list
+ratings_list = ratings_list.merge(movies_list, on='movieId', how='left')
 
-# Movie ratings per user
-user_ratings = ratings_.pivot_table(index='userId', columns='title', values='rating')
+# create dataframe with movie titles and their ratings
+ratings_df = pd.DataFrame(ratings_list.groupby('title')['rating'].mean())
+
+#corr = user_ratings.corrwith(user_ratings["GoldenEye (1995)"])
+#corr= corr.head(10)
+#print("movies", corr)
 
 # Recommend similar users
-def user_based(user_id, r_matrix, n=5):
-	curr_user = r_matrix[r_matrix, index==user_id]
-	other_users = r_matrix[r_matrix, index != user_id]
+def user_based(user_id, r_matrix, movieName, n=5):
 
-	#calculate user similarity using pearson correlation
-	similar_users = user_ratings.corrwith()[curr_user].sort_values(ascending=False).iloc[10]
+		# create a list with all the users and their ratings for movies
+		user_ratings = r_matrix.pivot_table(index='userId', columns='title', values='rating')
+		user_ratings = user_ratings.fillna(0)
 
-	# sort most recommended movies after watching Toy Story (1995)
-	most_recommended = user_ratings.corrwith()['Toy Story (1995)'].sort_values(ascending=False).iloc[20]
+		# Get movies rated by  
+		
+		# Recommend with pearsons correlation
+		correlation = user_ratings.corrwith(user_ratings[movieName]).sort_values(ascending=False)
+		correlation = correlation.head(20)
+		print(correlation)
 
-	# Show top 10 similar users
-	users = [u[0] for u in similar_users]
-	recc_movies = [k[0] for k in most_recommended]
-
-	return users, recc_movies
-
-	user_based(15, 'Toy Story (1995)')
+user_based(100, ratings_list, 'Enemy of the State (1998)')
 
 
 # Recommend items using cosine
-def item_based(user_id, n):
-
-	ratings_ = ratings_[ratings_.rating != -1]
-	ratings_ = ratings_.merge(movie_, on='movieId', how='left')
-	movie_liked = "Toy Story (1995)"
-
-	# filter out movies with no ratings to minimize dataset
+#def item_based(user_id, n):
+#
+#	ratings_ = ratings_[ratings_.rating != -1]
+#	ratings_ = ratings_.merge(movie_, on='movieId', how='left')
+#	movie_liked = "Toy Story (1995)"
+#	# filter out movies with no ratings to minimize dataset
 
 	#Find nearest neighbours
-	num_neigbours = 10
-	neigh = NearestNeighbours(metric='cosine')
-	neigh.fit(r_)
-	distances, indices = neigh.kneighbors(ratings_.values, n_neigbors=num_neigbours)
-
+#	num_neigbours = 10
+#	neigh.fit(r_)
+#
 	# Find userId's, index
-	user_index = r_.columns.tolist().index(15)
+#	user_index = r_.columns.tolist().index(15)
 
 	# save the index of the movie thatis being used to getprediction
-	movie_0_index = ratings_.index.tolist().index(movie_liked)
-
+#
 	# add indices of similar movies
-	sim_movies = 
+#	sim_movies = 
 
 
 
